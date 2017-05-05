@@ -1,6 +1,7 @@
 import pygame
 from pygame import *
 from pygame.locals import *
+import math
 import os
 
 def load_image(name,colorkey=None):
@@ -21,6 +22,8 @@ class Ball(sprite.Sprite):
     def __init__(self,image):
         sprite.Sprite.__init__(self)
         self.image,self.rect = load_image(image,-1)
+        self.speed = 0
+        self.angle = 0
         
     def set_position(self,x,y):
         self.rect.x = x
@@ -41,40 +44,8 @@ class Stick(sprite.Sprite):
     def __init__(self,image):
         sprite.Sprite.__init__(self)
         self.image,self.rect = load_image(image)
-
-
-if __name__ == '__main__':
-    pygame.init()
-    screen = pygame.display.set_mode((1138,643))
-    pygame.display.set_caption('Billiards')
-    pygame.mouse.set_visible(0)
-    
-    background = pygame.Surface(screen.get_size())
-    background = background.convert()
-    background.fill((0,0,0))
-    
-    screen.blit(background,(0,0))
-    pygame.display.flip()
-    
-    clock = pygame.time.Clock()
-    table = Table('table_resize.png')
-    cueball = Ball('ball_16_resize.png')
-    ball = Ball('ball_1_resize.png')
-    cueball.set_position(3*table.rect.width/4-27, table.rect.height/2)
-    ball.set_position(table.rect.width/4, table.rect.height/2)
-    
-    going = True
-    while going:
-        clock.tick(60)
+        self.power = 0
+        self.angle = 0
         
-        for event in pygame.event.get():
-            if event.type == QUIT:
-                going = False
-        
-        screen.blit(background,(0,0))
-        table.draw(screen)
-        cueball.draw(screen)
-        ball.draw(screen)
-        pygame.display.flip()
-    
-    pygame.quit()
+    def draw(self,surface):
+        surface.blit(self.image,self.rect)
