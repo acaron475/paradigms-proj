@@ -35,7 +35,7 @@ if __name__ == '__main__':
     while going:
         clock.tick(60)
         
-        if shooting == False: #If Ball has yet to be shot
+        if shooting == False: #If Ball has yet to be shot 
             for event in pygame.event.get():
                 if event.type == QUIT:
                     going = False
@@ -66,11 +66,18 @@ if __name__ == '__main__':
             stick.draw(screen)
         else: #Stick is shooting
             if stick.old_x == stick.rect.x and stick.old_y == stick.rect.y: #Stick has hit ball
+                # set speed and power of cueball
+                # with data from the stick
+                balls.balls[0].speed = stick.power
+                balls.balls[0].angle = stick.angle
                 stick.power = 0
                 stick.draw(screen)
+                #reset shooting to false
             else: #Stick has not yet hit ball
                 stick.shoot()
                 stick.draw(screen)
+
         pygame.display.flip()
-    
+        balls.tick()
+        
     pygame.quit()

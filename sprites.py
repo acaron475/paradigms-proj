@@ -55,6 +55,18 @@ class Balls():
         for ball in self.balls:
             ball.draw(surface)        
 
+    # tick in order to have balls move
+    def tick(self):
+        for ball in self.balls:
+            ball.tick()
+
+    def done(self):
+        # check if all balls are done moving
+        for ball in self.balls:
+            if ball.speed != 0:
+                return False
+        return True
+            
 #Class for each game ball
 class Ball(sprite.Sprite):
     def __init__(self,image,num):
@@ -71,6 +83,17 @@ class Ball(sprite.Sprite):
     def draw(self,surface):
         surface.blit(self.image,self.rect)
 
+    def tick(self):
+        #print("speed is ", str(self.speed))
+        # cos and sin take the angle in radians -- be careful
+        self.rect.x += -1 * self.speed * math.cos(self.angle)
+        self.rect.y += -1 * self.speed * math.sin(self.angle)
+        # use -1 since top left is origin
+        if self.speed != 0:
+            #print("decrementing speed")
+            self.speed -= 1
+        # gradually get slower
+        
 #Class for game table        
 class Table(sprite.Sprite):
     def __init__(self):
