@@ -4,10 +4,9 @@ from pygame.locals import *
 from sprites import *
 import os
 
-
 if __name__ == '__main__':
     pygame.init()
-    screen = pygame.display.set_mode((1138,643))
+    screen = pygame.display.set_mode((TABLE_WIDTH,TABLE_HEIGHT))
     pygame.display.set_caption('Billiards')
     pygame.mouse.set_visible(0)
     
@@ -19,11 +18,9 @@ if __name__ == '__main__':
     pygame.display.flip()
     
     clock = pygame.time.Clock()
-    table = Table('table.png')
-    cueball = Ball('ball_16.png')
-    ball = Ball('ball_1.png')
-    cueball.set_position(3*table.rect.width/4-27, table.rect.height/2)
-    ball.set_position(table.rect.width/4, table.rect.height/2)
+    table = Table()
+    balls = Balls()
+    balls.reset()
     
     going = True
     while going:
@@ -32,11 +29,12 @@ if __name__ == '__main__':
         for event in pygame.event.get():
             if event.type == QUIT:
                 going = False
+            if event.type == KEYDOWN and event.key == K_ESCAPE:
+                going = False
         
         screen.blit(background,(0,0))
         table.draw(screen)
-        cueball.draw(screen)
-        ball.draw(screen)
+        balls.draw(screen)
         pygame.display.flip()
     
     pygame.quit()
