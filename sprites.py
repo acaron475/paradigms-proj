@@ -4,10 +4,12 @@ from pygame.locals import *
 import math
 import os
 
+#Constants
 TABLE_HEIGHT = 643
 TABLE_WIDTH = 1138
-BALL_RADIUS = 35
+BALL_RADIUS = 35/2
 
+#Function for loading sprite images
 def load_image(name,colorkey=None):
     fullname = os.path.join('data/images',name)
     try:
@@ -22,6 +24,7 @@ def load_image(name,colorkey=None):
         image.set_colorkey(colorkey,RLEACCEL)
     return image,image.get_rect()
 
+#Class to hold all instances of game balls
 class Balls():
     def __init__(self):
         self.balls = [Ball('ball_16.png',0)]
@@ -29,6 +32,7 @@ class Balls():
             ball = Ball('ball_' + str(i) + '.png',i)
             self.balls.append(ball)
     
+    #Sets up table to be played
     def reset(self):
         self.balls[0].set_position(3*TABLE_WIDTH/4-27, TABLE_HEIGHT/2)
         self.balls[1].set_position(TABLE_WIDTH/4+27, TABLE_HEIGHT/2)
@@ -51,6 +55,7 @@ class Balls():
         for ball in self.balls:
             ball.draw(surface)        
 
+#Class for each game ball
 class Ball(sprite.Sprite):
     def __init__(self,image,num):
         sprite.Sprite.__init__(self)
@@ -65,7 +70,8 @@ class Ball(sprite.Sprite):
         
     def draw(self,surface):
         surface.blit(self.image,self.rect)
-        
+
+#Class for game table        
 class Table(sprite.Sprite):
     def __init__(self):
         sprite.Sprite.__init__(self)
@@ -74,12 +80,43 @@ class Table(sprite.Sprite):
     def draw(self,surface):
         surface.blit(self.image,self.rect)
 
+#Class for game cue
 class Stick(sprite.Sprite):
-    def __init__(self,image):
+    def __init__(self):
         sprite.Sprite.__init__(self)
-        self.image,self.rect = load_image(image)
+        self.image,self.rect = load_image('cue.png',-1)
         self.power = 0
         self.angle = 0
+    
+    #Function for drawing back before shot
+    def pull(self):
+        if self.power == 0:
+            self.old_x = self.rect.x
+            self.old_y = self.rect.y
+        if self.power < 100:    
+            self.rect.x += 10
+            self.power += 10
+
+    #Function to reset stick to pre-shot position   
+    def reset(self):
+        self.power = 0
+        self.rect.x = self.old_x
+        self.rect.y = self.old_y
+        
+    #Function to release stick before shot
+    def release(self):
+        if self.power > 0:
+            self.rect.x -= 10
+            self.power -= 10
+
+    #Function to shoot ball --- TODO: Determine how we want to animate this
+    def shoot(self):
+        self.rect.x = self.old_x
+    
+    #Function for setting stick in relation to cue ball
+    def set_position(self,x,y):
+        self.rect.x = x+BALL_RADIUS
+        self.rect.y = y - self.rect.height/2
         
     def draw(self,surface):
         surface.blit(self.image,self.rect)
