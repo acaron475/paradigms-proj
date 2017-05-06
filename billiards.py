@@ -61,7 +61,7 @@ if __name__ == '__main__':
         table.draw(screen)
         balls.draw(screen)
         
-        #Handle drawing of stick sprite --- TODO: Add in balls being effected
+        #Handle drawing of stick sprite --- TODO: Add in balls being effected       
         if(shooting == False):
             stick.draw(screen)
         else: #Stick is shooting
@@ -72,10 +72,17 @@ if __name__ == '__main__':
                 balls.balls[0].angle = stick.angle
                 stick.power = 0
                 stick.draw(screen)
-                #reset shooting to false
+                shooting = False
             else: #Stick has not yet hit ball
                 stick.shoot()
                 stick.draw(screen)
+
+        if shooting == False:
+            if balls.done() == True:
+                #if we made a shot and now the balls are done moving
+                #reset the stick and set shooting to false
+                stick.set_position(balls.balls[0].rect.centerx, balls.balls[0].rect.centery)
+                shooting = False
 
         pygame.display.flip()
         balls.tick()
