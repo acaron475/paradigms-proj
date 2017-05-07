@@ -3,11 +3,14 @@ from pygame import *
 from pygame.locals import *
 import math
 import os
+from math import atan2
 
 #Constants
 TABLE_HEIGHT = 643
 TABLE_WIDTH = 1138
 BALL_RADIUS = 35/2
+FRICTION = 0.999
+ELASTICITY = 0.75
 
 #Function for loading sprite images
 def load_image(name,colorkey=None):
@@ -53,25 +56,15 @@ class Balls():
     
     def draw(self,surface):
         for ball in self.balls:
-            ball.draw(surface)        
+            ball.draw(surface)
 
-    # this is sort of a hack, we could maybe improve this later
-    def wallCollisions(self):
-        for ball in self.balls:
-            x, y = ball.rect.centerx, ball.rect.centery
-            if x+BALL_RADIUS >= 1065:
-                ball.rect.centerx = 1064 - BALL_RADIUS
-                ball.angle = 180-ball.angle
-            if x-BALL_RADIUS <= 75:
-                ball.rect.centerx += 76 + BALL_RADIUS
-                ball.angle = 180-ball.angle
-            if y+BALL_RADIUS >=570:
-                ball.rect.centery = 569 - BALL_RADIUS
-                ball.angle = -ball.angle
-            if y-BALL_RADIUS <= 75:
-                ball.rect.centery = 76 + BALL_RADIUS
-                ball.angle = -ball.angle
-            
+    # moved all collision detection down to Ball class
+    def collisions(self):
+        for i,ball in enumerate(self.balls):
+                ball.wallCollisions()
+                for ball2 in self.balls[i+1:]:
+                    ball.ballCollision(ball2)
+                    
     # tick in order to have balls move
     def tick(self):
         for ball in self.balls:
@@ -99,6 +92,51 @@ class Ball(sprite.Sprite):
         
     def draw(self,surface):
         surface.blit(self.image,self.rect)
+        
+    # check and handle collision with walls
+    def wallCollisions(self):
+        x, y = self.rect.centerx, self.rect.centery
+        if x+BALL_RADIUS >= 1065:
+            self.rect.centerx = 1064 - BALL_RADIUS
+            self.angle = math.pi-self.angle
+        if x-BALL_RADIUS <= 72:
+            self.rect.centerx = 73 + BALL_RADIUS
+            self.angle = math.pi-self.angle
+        if y+BALL_RADIUS >=570:
+            self.rect.centery = 569 - BALL_RADIUS
+            self.angle = -self.angle
+        if y-BALL_RADIUS <= 72:
+            self.rect.centery = 73 + BALL_RADIUS
+            self.angle = -self.angle
+    
+    # check and handle collision with another ball
+    def ballCollision(self, other):
+        dx = self.rect.centerx - other.rect.centerx
+        dy = self.rect.centery - other.rect.centery
+        distance = math.hypot(dx, dy) #distance between ball centers
+        if distance < BALL_RADIUS*2: #collision!
+            
+            #calculate angle between balls
+            tangent = math.atan2(dy,dx)     
+            tangent = -1*(tangent-math.pi) #convert to our reference
+            
+            #Set new x/y distances ---- Huzzah for wikipedia: https://en.wikipedia.org/wiki/Elastic_collision#Two-dimensional_collision_with_two_moving_objects
+            new_x1 = other.speed*math.cos(other.angle-tangent)*math.cos(tangent)+self.speed*math.sin(self.angle-tangent)*math.cos(tangent+math.pi/2)
+            new_y1 = other.speed*math.cos(other.angle-tangent)*math.sin(tangent)+self.speed*math.sin(self.angle-tangent)*math.sin(tangent+math.pi/2)
+            new_x2 = self.speed*math.cos(self.angle-tangent)*math.cos(tangent)+other.speed*math.sin(other.angle-tangent)*math.cos(tangent+math.pi/2)
+            new_y2 = self.speed*math.cos(self.angle-tangent)*math.sin(tangent)+other.speed*math.sin(other.angle-tangent)*math.sin(tangent+math.pi/2)
+            
+            #Turn x/y distances into angle and magnitude
+            self.angle = math.atan2(new_y1, new_x1)
+            self.speed = math.hypot(new_x1, new_y1)
+            other.angle = math.atan2(new_y2, new_x2)
+            other.speed = math.hypot(new_x2, new_y2)
+            
+            #Try to unstick balls from each other -- TODO: This part is still iffy
+            self.rect.centerx += -1*math.cos(tangent+math.pi/2)
+            self.rect.centery += -1*math.sin(tangent+math.pi/2)
+            other.rect.centerx -= -1*math.cos(tangent+math.pi/2)
+            other.rect.centery -= -1*math.sin(tangent+math.pi/2)
 
     def tick(self):
         #print("speed is ", str(self.speed))
@@ -106,7 +144,11 @@ class Ball(sprite.Sprite):
         self.rect.x += -1 * self.speed * math.cos(self.angle)
         self.rect.y += -1 * self.speed * math.sin(self.angle)
         # use -1 since top left is origin
+        # added "friction" constant to slow ball then hard stop once reaches slow enough
         if self.speed != 0:
+            self.speed *= FRICTION
+            if self.speed < 1.75:
+                 self.speed = 0
             pass
             #print("decrementing speed")
             #self.speed -= 1
@@ -143,7 +185,8 @@ class Wall():
 class Stick(sprite.Sprite):
     def __init__(self):
         sprite.Sprite.__init__(self)
-        self.image,self.rect = load_image('cue.png',-1)
+        self.image,self.rect = load_image('cue_short.png',-1)
+        self.hidden_image,temp = load_image('cue_hidden.png',-1)
         self.orig_image = self.image
         self.current_x = self.rect.x
         self.curent_y = self.rect.y
@@ -155,7 +198,7 @@ class Stick(sprite.Sprite):
         if self.power == 0:
             self.old_x = self.rect.x
             self.old_y = self.rect.y
-        if self.power < 100:    
+        if self.power < 150:    
             self.rect.x += 10
             self.power += 10
 
@@ -174,6 +217,7 @@ class Stick(sprite.Sprite):
     #Function to shoot ball --- TODO: Determine how we want to animate this
     def shoot(self):
         self.rect.x = self.old_x
+        self.rect.y = self.old_y
     
     #Function for setting stick in relation to cue ball
     def set_position(self,x,y):
