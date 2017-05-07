@@ -24,6 +24,7 @@ if __name__ == '__main__':
  
 # Create sprite Objects 
     table = Table()
+    #walls = Walls()
     stick = Stick()
     balls = Balls()
     balls.reset()
@@ -34,6 +35,9 @@ if __name__ == '__main__':
     shooting = False
     while going:
         clock.tick(60)
+
+        #x, y = pygame.mouse.get_pos()
+        #print(x, y)
         
         if shooting == False: #If Ball has yet to be shot 
             for event in pygame.event.get():
@@ -69,7 +73,7 @@ if __name__ == '__main__':
                 # set speed and power of cueball
                 # with data from the stick
                 balls.balls[0].speed = stick.power
-                balls.balls[0].angle = stick.angle
+                balls.balls[0].angle = 80 #stick.angle
                 stick.power = 0
                 stick.draw(screen)
                 shooting = False
@@ -77,7 +81,7 @@ if __name__ == '__main__':
                 stick.shoot()
                 stick.draw(screen)
 
-        if shooting == False:
+        if shooting == False and stick.power == 0:
             if balls.done() == True:
                 #if we made a shot and now the balls are done moving
                 #reset the stick and set shooting to false
@@ -86,5 +90,7 @@ if __name__ == '__main__':
 
         pygame.display.flip()
         balls.tick()
+        stick.tick(balls.balls[0])
+        balls.wallCollisions()
         
     pygame.quit()
