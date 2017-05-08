@@ -83,6 +83,13 @@ def game_loop(dict):
                 shooting = True
                 dict['shooting'] = True
 
+        balls.tick()
+        stick.tick(balls.balls[0])
+        scoredArray = balls.collisions()
+        player.handleScores(scoredArray)
+        message.image = message.your_turn_image
+
+
         if stick.power == 0 and shooting == True:
             if balls.done() == True:
                 #if we made a shot and now the balls are done moving
@@ -99,13 +106,6 @@ def game_loop(dict):
             if stick.power == 0:
                 stick.set_position(balls.balls[0].rect.centerx, balls.balls[0].rect.centery)            
 
-        balls.tick()
-        stick.tick(balls.balls[0])
-        scoredArray = balls.collisions()
-        player.handleScore(scoredArray)
-        message.image = message.your_turn_image
-        
-
     elif player.gameover == False:
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -118,6 +118,7 @@ def game_loop(dict):
             message.image = message.connection_image
         else:
             message.image = message.other_turn_image 
+            
     else:
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -130,6 +131,7 @@ def game_loop(dict):
     #Draw Sprites
     screen.blit(background,(0,0))
     table.draw(screen)
+    player.draw(screen)
     message.draw(screen)
     balls.draw(screen)
     stick.draw(screen,balls.balls[0],player.turn)

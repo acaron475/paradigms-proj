@@ -49,10 +49,10 @@ class Player():
         self.justScored = False
         self.scoreTotal = 0
         self.gameover = False
-        self.you_lose_image,temp = load_image("you_lose.png",(255,255,0))
-        self.you_win_image,temp = load_image("you_win.png",(255,255,0))
-        self.other_lose_image,temp = load_image("other_lose.png",(255,255,0))
-        self.other_win_image,temp = load_image("other_win.png",(255,255,0))
+        self.you_lose_image,temp = load_image("you_lost.png",(255,255,0))
+        self.you_win_image,temp = load_image("you_won.png",(255,255,0))
+        self.other_lose_image,temp = load_image("other_lost.png",(255,255,0))
+        self.other_win_image,temp = load_image("other_won.png",(255,255,0))
         self.stripes_image,temp = load_image("stripes.png",-1)
         self.solids_image,temp = load_image("solids.png",-1)
         self.hidden_team_image,temp = load_image("hidden_team.png",-1)
@@ -78,6 +78,8 @@ class Player():
         self.connection.transport.write(data.encode('utf-8'))
         if self.justScored == False:
             self.turn = False
+        else:
+            self.justScored = False
     
     def moveReceived(self,data):
         data = json.loads(data)
@@ -85,8 +87,7 @@ class Player():
         for i,arr in enumerate(data[1]):
             x = arr[0]
             y = arr[1]
-            image = arr[2]
-            scored = arr[3]
+            scored = arr[2]
             self.balls.balls[i].rect.x = x
             self.balls.balls[i].rect.y = y
             self.balls.balls[i].scored = scored
@@ -162,7 +163,7 @@ class Player():
         
     def draw(self,surface):
         self.rect = self.teamImage.get_rect()
-        surface.blit(self.teamImage,(0,0))  
+        surface.blit(self.teamImage,(100,0))  
         
 
 #Class to hold all instances of game balls
