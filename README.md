@@ -4,6 +4,11 @@
 This project is a billiards game played between 2 different people over the internet.  A server is launched that handles data relaying between the 2 clients.
 
 ## Launching the Program
+###### Mandatory Launch Order
+1. Server
+2. Client 1
+3. Client 2
+
 ###### Client
 1. Ensure client.py, billiards.py, and classes.py files are present
 2. Run "python billiards.py <server address> <port>"
