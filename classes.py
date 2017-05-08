@@ -4,13 +4,18 @@ from pygame.locals import *
 import math
 import os
 from math import atan2
+import client
+import json
+from client import *
 
 #Constants
 TABLE_HEIGHT = 643
 TABLE_WIDTH = 1138
 BALL_RADIUS = 35/2
-FRICTION = 0.999
+FRICTION = 0.98
 ELASTICITY = 0.75
+PLAYER1_PORT = 40129
+PLAYER2_PORT = 41129
 
 #Function for loading sprite images
 def load_image(name,colorkey=None):
@@ -26,6 +31,46 @@ def load_image(name,colorkey=None):
             colorkey = image.get_at((0,0))
         image.set_colorkey(colorkey,RLEACCEL)
     return image,image.get_rect()
+
+#Class to hold player's info
+class Player():
+    def __init__(self,port,addr,balls):
+        if port == PLAYER1_PORT:
+            self.turn = True
+        else:
+            self.turn = False
+        self.port = port
+        self.addr = addr
+        self.connected = False
+        self.balls = balls
+    
+    def startConnection(self,data):
+        self.client = Client(self,data)
+        self.client.startConnection()
+        
+    def closeConnection(self):
+        self.connection.transport.loseConnection()
+    
+    def sendMove(self):
+        data = []
+        for ball in self.balls.balls:
+            data.append((ball.rect.x,ball.rect.y))
+        data = json.dumps(data)
+        print(data)
+        self.connection.transport.write(data.encode('utf-8'))
+        print("sent")
+        self.turn = False
+    
+    def moveReceived(self,data):
+        data = json.loads(data)
+        for i,coords in enumerate(data):
+            x,y = coords
+            self.balls.balls[i].rect.x = x
+            self.balls.balls[i].rect.y = y
+        self.turn = True
+            
+    def takeshot(self,angle,power):
+        print(str(math.degrees(angle)) + " " + str(power))
 
 #Class to hold all instances of game balls
 class Balls():
@@ -53,7 +98,13 @@ class Balls():
         self.balls[2].set_position(self.balls[5].rect.x-33,self.balls[5].rect.y+18)
         self.balls[14].set_position(self.balls[13].rect.x-33,self.balls[13].rect.y+18)
         self.balls[15].set_position(self.balls[6].rect.x-33,self.balls[6].rect.y+18)
-    
+        
+        for ball in self.balls:
+            ball.speed = 0
+            ball.angle = 0
+            ball.image = ball.orig_image
+            ball.scored = False
+          
     def draw(self,surface):
         for ball in self.balls:
             ball.draw(surface)
@@ -61,9 +112,12 @@ class Balls():
     # moved all collision detection down to Ball class
     def collisions(self):
         for i,ball in enumerate(self.balls):
-                ball.wallCollisions()
+            if ball.scored != True:
+                ball.wallCollision()
                 for ball2 in self.balls[i+1:]:
-                    ball.ballCollision(ball2)
+                    if ball2.scored != True:
+                        ball.ballCollision(ball2)
+                ball.pocketCollision()
                     
     # tick in order to have balls move
     def tick(self):
@@ -73,8 +127,9 @@ class Balls():
     def done(self):
         # check if all balls are done moving
         for ball in self.balls:
-            if ball.speed != 0:
-                return False
+            if ball.scored == False:    
+                if ball.speed != 0:
+                    return False
         return True
             
 #Class for each game ball
@@ -82,9 +137,12 @@ class Ball(sprite.Sprite):
     def __init__(self,image,num):
         sprite.Sprite.__init__(self)
         self.image,self.rect = load_image(image,-1)
+        self.hidden_image,temp = load_image('ball_hidden.png',-1)
+        self.orig_image = self.image
         self.num = num
         self.speed = 0
         self.angle = 0
+        self.scored = False
         
     def set_position(self,x,y):
         self.rect.x = x
@@ -94,18 +152,18 @@ class Ball(sprite.Sprite):
         surface.blit(self.image,self.rect)
         
     # check and handle collision with walls
-    def wallCollisions(self):
+    def wallCollision(self):
         x, y = self.rect.centerx, self.rect.centery
-        if x+BALL_RADIUS >= 1065:
+        if x+BALL_RADIUS >= 1065 and (y+BALL_RADIUS < 530 or y-BALL_RADIUS > 111):
             self.rect.centerx = 1064 - BALL_RADIUS
             self.angle = math.pi-self.angle
-        if x-BALL_RADIUS <= 72:
+        if x-BALL_RADIUS <= 72 and (y+BALL_RADIUS < 530 or y-BALL_RADIUS > 111):
             self.rect.centerx = 73 + BALL_RADIUS
             self.angle = math.pi-self.angle
-        if y+BALL_RADIUS >=570:
+        if y+BALL_RADIUS >=570 and (x+BALL_RADIUS < 1025 or x-BALL_RADIUS > 104):
             self.rect.centery = 569 - BALL_RADIUS
             self.angle = -self.angle
-        if y-BALL_RADIUS <= 72:
+        if y-BALL_RADIUS <= 72 and (x+BALL_RADIUS < 1025 or x-BALL_RADIUS > 104):
             self.rect.centery = 73 + BALL_RADIUS
             self.angle = -self.angle
     
@@ -137,6 +195,30 @@ class Ball(sprite.Sprite):
             self.rect.centery += -1*math.sin(tangent+math.pi/2)
             other.rect.centerx -= -1*math.cos(tangent+math.pi/2)
             other.rect.centery -= -1*math.sin(tangent+math.pi/2)
+    
+    def pocketCollision(self):
+        corner_pockets = []
+        side_pockets = []
+        for coord in corner_pockets:
+            dx = self.rect.centerx - coord[0]
+            dy = self.rect.centery - coord[1]
+            distance = math.hypot(dx, dy)
+            if distance < 31:
+                score()
+        for coord in side_pockets:
+            dx = self.rect.centerx - coord[0]
+            dy = self.rect.centery - coord[1]
+            distance = math.hypot(dx, dy)
+            if distance < 27:
+                scored()
+                
+    def scored(self):
+        self.image = self.hidden_image
+        self.scored = True
+        self.speed = 0
+        self.angle = 0
+        self.rect.x = 0
+        self.rect.y = 0
 
     def tick(self):
         #print("speed is ", str(self.speed))
@@ -224,21 +306,50 @@ class Stick(sprite.Sprite):
         self.rect.x = x+BALL_RADIUS
         self.rect.y = y - self.rect.height/2
         
-    def draw(self,surface):
+    def draw(self,surface,cueball,show):
+        cx = cueball.rect.centerx       
+        cy = cueball.rect.centery
+        x = cx+BALL_RADIUS*2*math.cos(self.angle-math.pi)
+        y = cy+BALL_RADIUS*2*math.sin(self.angle-math.pi)
+        if not show:
+            y = 0
+            x = 0
+            cx = 0
+            cy = 0
+        self.line = pygame.draw.line(surface,(0,0,0),(cx,cy),(x,y))
         surface.blit(self.image,self.rect)
 
     # Function to update angle of stick -- follows mouse
     def tick(self, cueball):
         pass
-        #curr_x, curr_y = self.rect.x, self.rect.y
-        #x, y = pygame.mouse.get_pos()
-        #x -= cueball.rect.centerx
-        #y -= cueball.rect.centery
-        #self.angle = math.degrees(math.atan2(x, y)) + 90
-        #print(self.angle)
-        
-        #self.image = pygame.transform.rotate(self.orig_image, self.angle)
-        #self.set_position(curr_x, curr_y)
-        #self.rect = self.image.get_rect()
-        #self.rect.x = curr_x
-        #self.rect.y = curr_y
+#        cx, cy = cueball.rect.centerx, cueball.rect.centery
+#        mx, my = pygame.mouse.get_pos()
+#
+#        self.angle = -1*(math.atan2(my-cy,mx-cx)-math.pi)
+#        print(self.angle)
+#        self.image = rot_center(self.orig_image, math.degrees(self.angle))        
+#        
+#        ratio = (int(math.degrees(self.angle)) / 180) % (180)
+#        print(ratio)
+#        
+#        x = cx# + (self.rect.width/2+BALL_RADIUS)*math.cos(self.angle)
+#        y = cy# + (self.rect.width/2+BALL_RADIUS)*math.sin(self.angle)
+#        self.rect.midleft = (x,y)
+#        self.rect.centery = y
+#        x -= cueball.rect.centerx
+#        y -= cueball.rect.centery
+#        self.angle = math.degrees(math.atan2(x, y)) + 90
+#        print(self.angle)
+#        
+#        self.image = pygame.transform.rotate(self.orig_image, self.angle)
+#        self.set_position(curr_x, curr_y)
+#        self.rect = self.image.get_rect()
+#        self.rect.x = curr_x
+#        self.rect.y = curr_y
+def rot_center(image, angle):
+    """rotate an image while keeping its center and size"""
+    orig_rect = image.get_rect()
+    rot_image = pygame.transform.rotate(image, angle)
+    rot_rect = orig_rect.copy()
+    rot_rect.center = rot_image.get_rect().center
+    return rot_image
