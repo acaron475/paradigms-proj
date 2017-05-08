@@ -20,3 +20,4 @@ This project is a billiards game played between 2 different people over the inte
 1. Ensure server.py file is present
 2. Run "python server.py"
 3. Python version used must be 3.4+
+4. Ports 40129 and 41129 must be open and unused on this machine!
