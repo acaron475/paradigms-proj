@@ -1,4 +1,5 @@
 from twisted.internet.protocol import *
+from twisted.protocols.policies import TimeoutMixin
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 from time import sleep
@@ -7,8 +8,8 @@ import sys
 from twisted.internet.defer import DeferredQueue
 from twisted.internet.endpoints import TCP4ClientEndpoint
 import billiards
-
-class Player_Handler(Protocol):
+        
+class Player_Handler(Protocol, TimeoutMixin):
     def __init__(self,player):
         self.open = False
         self.player = player
@@ -22,8 +23,10 @@ class Player_Handler(Protocol):
         self.player.moveReceived(data)
     
     def connectionLost(self,reason):
+        print("Closing game.  Connection lost.")
         self.player.connected = False
-        reactor.stop()
+        if reactor.running:
+            reactor.stop()
 
 class Player_Handler_Factory(Factory):
     def __init__(self,player):
@@ -38,7 +41,7 @@ class Client():
         self.dataDict = dict
     
     def startConnection(self):
-        log.startLogging(sys.stdout)
+#        log.startLogging(sys.stdout)
         lc = LoopingCall(billiards.game_loop,self.dataDict)
         ret = lc.start(1/60)
         ret.addCallback(billiards.quit)

@@ -24,6 +24,7 @@ if __name__ == '__main__':
  
 # Create sprite Objects
     data = {}
+    data['message'] = Message()
     data['background'] = background
     data['screen'] = screen
     data['table'] = Table()
@@ -48,9 +49,10 @@ def game_loop(dict):
     background = dict['background']
     screen = dict['screen']
     shooting = dict['shooting']
-#    clock = dict['clock']
+    message = dict['message']
+    #    clock = dict['clock']
     
-    if player.turn == True and player.connected == True:
+    if player.turn == True and player.connected == True and player.gameover == False:
 #        for i,ball in player.balls.balls:
 #            balls.balls[i].rect.x = ball.rect.x
 #            balls.balls[i].rect.y = ball.rect.y
@@ -58,9 +60,11 @@ def game_loop(dict):
             
         for event in pygame.event.get():
             if event.type == QUIT:
-                stop()
+                quit(player)
+                return
             elif event.type == KEYDOWN and event.key == K_ESCAPE:
-                stop()
+                quit(player)
+                return
             elif event.type == KEYDOWN and event.key == K_w: #Draw back stick
                 stick.pull()
             elif event.type == KEYDOWN and event.key == K_s: #Release stick forward
@@ -79,12 +83,6 @@ def game_loop(dict):
                 shooting = True
                 dict['shooting'] = True
 
-        #Draw Sprites
-        screen.blit(background,(0,0))
-        table.draw(screen)
-        balls.draw(screen)
-        stick.draw(screen,balls.balls[0],player.turn)
-
         if stick.power == 0 and shooting == True:
             if balls.done() == True:
                 #if we made a shot and now the balls are done moving
@@ -101,24 +99,45 @@ def game_loop(dict):
             if stick.power == 0:
                 stick.set_position(balls.balls[0].rect.centerx, balls.balls[0].rect.centery)            
 
-        pygame.display.flip()
         balls.tick()
         stick.tick(balls.balls[0])
-        balls.collisions()
+        scoredArray = balls.collisions()
+        player.handleScore(scoredArray)
+        message.image = message.your_turn_image
+        
+
+    elif player.gameover == False:
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                quit(player)
+                return
+            elif event.type == KEYDOWN and event.key == K_ESCAPE:
+                quit(player)
+                return   
+        if player.connected == False:
+            message.image = message.connection_image
+        else:
+            message.image = message.other_turn_image 
     else:
         for event in pygame.event.get():
             if event.type == QUIT:
-                stop()
+                quit(player)
+                return
             elif event.type == KEYDOWN and event.key == K_ESCAPE:
-                stop()
-        
-        if player.connected == False:
-            myfont = pygame.font.SysFont("monospace",15)
-            label = myfont.render("WAITING FOR CONNECTION",1,(0,0,0))
-            screen.blit(label,(1138/2-11,643))
-            
-    stick.draw(screen,balls.balls[0],player.turn)            
+                quit(player)
+                return  
+      
+    #Draw Sprites
+    screen.blit(background,(0,0))
+    table.draw(screen)
+    message.draw(screen)
+    balls.draw(screen)
+    stick.draw(screen,balls.balls[0],player.turn)
+    if player.gameover == True:
+        player.drawGameOver(screen)         
+    pygame.display.flip()   
 
+    dict['message'] = message
     dict['player'] = player
     dict['balls'] = balls
     dict['stick'] = stick
@@ -127,6 +146,6 @@ def game_loop(dict):
     dict['screen'] = screen
     dict['shooting'] = shooting
 
-def quit():    
+def quit(player):    
     player.closeConnection()                        
     pygame.quit()

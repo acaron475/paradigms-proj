@@ -37,12 +37,27 @@ class Player():
     def __init__(self,port,addr,balls):
         if port == PLAYER1_PORT:
             self.turn = True
+            self.num = 1
         else:
             self.turn = False
+            self.num = 2
         self.port = port
         self.addr = addr
         self.connected = False
         self.balls = balls
+        self.team = ""
+        self.justScored = False
+        self.scoreTotal = 0
+        self.gameover = False
+        self.you_lose_image,temp = load_image("you_lose.png",(255,255,0))
+        self.you_win_image,temp = load_image("you_win.png",(255,255,0))
+        self.other_lose_image,temp = load_image("other_lose.png",(255,255,0))
+        self.other_win_image,temp = load_image("other_win.png",(255,255,0))
+        self.stripes_image,temp = load_image("stripes.png",-1)
+        self.solids_image,temp = load_image("solids.png",-1)
+        self.hidden_team_image,temp = load_image("hidden_team.png",-1)
+        self.endImage = self.you_win_image
+        self.teamImage = self.hidden_team_image
     
     def startConnection(self,data):
         self.client = Client(self,data)
@@ -51,26 +66,104 @@ class Player():
     def closeConnection(self):
         self.connection.transport.loseConnection()
     
-    def sendMove(self):
-        data = []
+    def sendMove(self,gameover=None):
+        data = [self.justScored,[],self.team]
         for ball in self.balls.balls:
-            data.append((ball.rect.x,ball.rect.y))
+            data[1].append([ball.rect.x,ball.rect.y,ball.scored])        
+        if gameover is not None:
+            data.append(gameover)
+            
+
         data = json.dumps(data)
-        print(data)
         self.connection.transport.write(data.encode('utf-8'))
-        print("sent")
-        self.turn = False
+        if self.justScored == False:
+            self.turn = False
     
     def moveReceived(self,data):
         data = json.loads(data)
-        for i,coords in enumerate(data):
-            x,y = coords
+        playerScored = data[0]
+        for i,arr in enumerate(data[1]):
+            x = arr[0]
+            y = arr[1]
+            image = arr[2]
+            scored = arr[3]
             self.balls.balls[i].rect.x = x
             self.balls.balls[i].rect.y = y
-        self.turn = True
+            self.balls.balls[i].scored = scored
+            if scored:
+                self.balls.balls[i].image = self.balls.balls[i].hidden_image
+        if self.team == "":
+            if data[2] == "stripe":
+                self.team = "solid"
+                self.teamImage = self.solids_image
+            elif data[2] == "solid":
+                self.team == "stripe"
+                self.teamImage = self.stripes_image
+        if playerScored == False:
+            self.turn = True
+        if len(data) == 4:
+            self.gameover(data[3])
+    
+    def handleScores(self,arr):
+        for i,scored in enumerate(arr):
+            if scored == 1:
+                if i == 8:
+                    self.gameover(1)
+                elif i == 0:
+                    self.cueScratch()
+                elif self.team == "":
+                    self.justScored = True
+                    self.scoreTotal += 1
+                    if i < 8:
+                        self.team = "solid"
+                        self.teamImage = self.solids_image
+                    else:
+                        self.team = "stripe"
+                        self.teamImage = self.stripes_image
+                elif self.team == "solid" and i < 8:
+                    self.justScored = True
+                    self.scoreTotal += 1
+                elif self.team == "stripe" and i > 8:
+                    self.justScored = True
+                    self.scoreTotal += 1
+                
+    def gameover(self,status):
+        self.gameover = True
+        if status == 1 and self.scoreTotal == 7:
+            self.win(status)
+        elif status == 0:
+            self.win(status)
+        else:
+            self.lose(status)
+                            
+    def win(self,status):
+        if status == 1:
+            self.endImage = self.you_won_image
+            self.turn = False
+            self.sendMove(-1)
+        else:
+            self.endImage = self.other_lose_image
+            self.turn = False
+    
+    def lose(self,status):
+        if status == 1:
+            self.endImage = self.you_lose_image
+            self.turn = False
+            self.sendMove(0)
+        else:
+            self.endImage = self.other_won_image
+            self.turn = False
             
-    def takeshot(self,angle,power):
-        print(str(math.degrees(angle)) + " " + str(power))
+    def drawGameOver(self,surface):
+        self.rect = self.endImage.get_rect()
+        self.rect.centerx = TABLE_WIDTH/2
+        self.rect.centery = TABLE_HEIGHT/2
+        surface.blit(self.endImage,self.rect)
+        
+    def draw(self,surface):
+        self.rect = self.teamImage.get_rect()
+        surface.blit(self.teamImage,(0,0))  
+        
 
 #Class to hold all instances of game balls
 class Balls():
@@ -111,13 +204,21 @@ class Balls():
 
     # moved all collision detection down to Ball class
     def collisions(self):
+        scoreArray = []
         for i,ball in enumerate(self.balls):
-            if ball.scored != True:
+            if ball.scored == False:
                 ball.wallCollision()
                 for ball2 in self.balls[i+1:]:
                     if ball2.scored != True:
                         ball.ballCollision(ball2)
-                ball.pocketCollision()
+                scoreTest = ball.pocketCollision()
+                if scoreTest == True:
+                    scoreArray.append(1)
+                else:
+                    scoreArray.append(0)
+            else:
+                scoreArray.append(-1)
+        return scoreArray
                     
     # tick in order to have balls move
     def tick(self):
@@ -136,9 +237,10 @@ class Balls():
 class Ball(sprite.Sprite):
     def __init__(self,image,num):
         sprite.Sprite.__init__(self)
-        self.image,self.rect = load_image(image,-1)
+        self.orig_image,temp = load_image(image,-1)
         self.hidden_image,temp = load_image('ball_hidden.png',-1)
-        self.orig_image = self.image
+        self.image = self.image = self.orig_image
+        self.rect = self.image.get_rect()
         self.num = num
         self.speed = 0
         self.angle = 0
@@ -154,16 +256,16 @@ class Ball(sprite.Sprite):
     # check and handle collision with walls
     def wallCollision(self):
         x, y = self.rect.centerx, self.rect.centery
-        if x+BALL_RADIUS >= 1065 and (y+BALL_RADIUS < 530 or y-BALL_RADIUS > 111):
+        if x+BALL_RADIUS >= 1065 and y+BALL_RADIUS < 530 and y-BALL_RADIUS > 111:
             self.rect.centerx = 1064 - BALL_RADIUS
             self.angle = math.pi-self.angle
-        if x-BALL_RADIUS <= 72 and (y+BALL_RADIUS < 530 or y-BALL_RADIUS > 111):
+        if x-BALL_RADIUS <= 72 and y+BALL_RADIUS < 530 and y-BALL_RADIUS > 111:
             self.rect.centerx = 73 + BALL_RADIUS
             self.angle = math.pi-self.angle
-        if y+BALL_RADIUS >=570 and (x+BALL_RADIUS < 1025 or x-BALL_RADIUS > 104):
+        if y+BALL_RADIUS >=570 and x+BALL_RADIUS < 1025 and x-BALL_RADIUS > 105:
             self.rect.centery = 569 - BALL_RADIUS
             self.angle = -self.angle
-        if y-BALL_RADIUS <= 72 and (x+BALL_RADIUS < 1025 or x-BALL_RADIUS > 104):
+        if y-BALL_RADIUS <= 72 and x+BALL_RADIUS < 1025 and x-BALL_RADIUS > 105:
             self.rect.centery = 73 + BALL_RADIUS
             self.angle = -self.angle
     
@@ -197,22 +299,25 @@ class Ball(sprite.Sprite):
             other.rect.centery -= -1*math.sin(tangent+math.pi/2)
     
     def pocketCollision(self):
-        corner_pockets = []
-        side_pockets = []
+        corner_pockets = [(53,60),(53,584),(1077,60),(1077,584)]
+        side_pockets = [(563,47),(563,594)]
         for coord in corner_pockets:
             dx = self.rect.centerx - coord[0]
             dy = self.rect.centery - coord[1]
             distance = math.hypot(dx, dy)
-            if distance < 31:
-                score()
+            if distance < 35:
+                self.score()
+                return True
         for coord in side_pockets:
             dx = self.rect.centerx - coord[0]
             dy = self.rect.centery - coord[1]
             distance = math.hypot(dx, dy)
-            if distance < 27:
-                scored()
+            if distance < 30:
+                self.score()
+                return True
+        return False
                 
-    def scored(self):
+    def score(self):
         self.image = self.hidden_image
         self.scored = True
         self.speed = 0
@@ -241,6 +346,7 @@ class Table(sprite.Sprite):
     def __init__(self):
         sprite.Sprite.__init__(self)
         self.image,self.rect = load_image('table.png')
+        
 
     def draw(self,surface):
         surface.blit(self.image,self.rect)
@@ -316,8 +422,10 @@ class Stick(sprite.Sprite):
             x = 0
             cx = 0
             cy = 0
+            surface.blit(self.hidden_image,self.rect)
+        else:
+            surface.blit(self.orig_image,self.rect)
         self.line = pygame.draw.line(surface,(0,0,0),(cx,cy),(x,y))
-        surface.blit(self.image,self.rect)
 
     # Function to update angle of stick -- follows mouse
     def tick(self, cueball):
@@ -346,6 +454,22 @@ class Stick(sprite.Sprite):
 #        self.rect = self.image.get_rect()
 #        self.rect.x = curr_x
 #        self.rect.y = curr_y
+
+class Message(sprite.Sprite):
+    def __init__(self):
+        sprite.Sprite.__init__(self)
+        self.connection_image,temp = load_image('waiting_for_connection.png',-1)
+        self.your_turn_image,temp = load_image('your_turn.png',-1)
+        self.other_turn_image,temp = load_image("other_players_turn.png",-1)
+        self.image = self.connection_image
+        self.rect = self.image.get_rect()
+        self.rect.x = 680
+        self.rect.y = 10
+            
+    def draw(self,surface):
+        surface.blit(self.image,self.rect)
+        
+    
 def rot_center(image, angle):
     """rotate an image while keeping its center and size"""
     orig_rect = image.get_rect()

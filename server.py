@@ -18,7 +18,6 @@ class Player1_Handler(Protocol):
     
     def dataReceived(self,data): 
         self.queue.put(data)
-        print(data)
 
     def connectionMade(self):
         self.open = True
@@ -48,13 +47,11 @@ class Player2_Handler(Protocol):
         self.otherPlayer.otherPlayer = self
     
     def dataReceived(self,data):
-        print(data)
         self.otherPlayer.transport.write(data)
     
     def connectionMade(self):
         self.open = True
         self.otherPlayer.startForwarding()
-        print("CONNECTION MADE")
 #        startObserverConnection(self)
     
     def connectionLost(self,reason):
@@ -78,12 +75,14 @@ def startPlayer2Connection(player1):
     dataEndpoint.listen(Player2_Handler_Factory(player1))
 
 def closeConnections(connection):
-    connection.otherPlayer.open = False
-    connection.otherPlayer.transport.loseConnection()
-    reactor.stop()
+    if hasattr(connection, 'otherPlayer'):
+        connection.otherPlayer.open = False
+        connection.otherPlayer.transport.loseConnection()
+    if reactor.running:
+        reactor.stop()
 
 if __name__ == '__main__':
-    log.startLogging(sys.stdout)
+#    log.startLogging(sys.stdout)
     dataEndpoint = TCP4ServerEndpoint(reactor,player1_port)
     dataEndpoint.listen(Player1_Handler_Factory())
     reactor.run()
