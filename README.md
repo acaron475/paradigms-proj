@@ -1,4 +1,4 @@
-# paradigms-proj
+# billiards.py
 
 ## Program Summary
 This project is a billiards game played between 2 different people over the internet.  A server is launched that handles data relaying between the 2 clients.
