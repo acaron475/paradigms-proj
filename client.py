@@ -42,6 +42,7 @@ class Client():
     
     def startConnection(self):
 #        log.startLogging(sys.stdout)
+        # start running the game
         lc = LoopingCall(billiards.game_loop,self.dataDict)
         ret = lc.start(1/60)
         ret.addCallback(billiards.quit)

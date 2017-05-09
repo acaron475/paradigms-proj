@@ -58,7 +58,8 @@ class Player():
         self.hidden_team_image,temp = load_image("hidden_team.png",-1)
         self.endImage = self.you_win_image
         self.teamImage = self.hidden_team_image
-    
+
+    #Networking functions
     def startConnection(self,data):
         self.client = Client(self,data)
         self.client.startConnection()
@@ -104,14 +105,15 @@ class Player():
             self.turn = True
         if len(data) == 4:
             self.gameover(data[3])
-    
+
+    #Given an array of which balls have been made, keep track of score
     def handleScores(self,arr):
         for i,scored in enumerate(arr):
             if scored == 1:
                 if i == 8:
                     self.gameover(1)
                 elif i == 0:
-                    print("scratched")
+                    # scratched
                     self.cueScratch()
                 elif self.team == "":
                     self.justScored = True
@@ -130,7 +132,7 @@ class Player():
                     self.scoreTotal += 1
 
     def cueScratch(self):
-        print("resetting from scratch")
+        #reset the cue position and go to the other player's turn
         self.balls.balls[0].set_position(3*TABLE_WIDTH/4-27, TABLE_HEIGHT/2)
                     
     def gameover(self,status):
@@ -182,7 +184,6 @@ class Balls():
     #Sets up table to be played
     def reset(self):
         self.balls[0].set_position(3*TABLE_WIDTH/4-27, TABLE_HEIGHT/2)
-        #return
         self.balls[1].set_position(TABLE_WIDTH/4+27, TABLE_HEIGHT/2)
         self.balls[9].set_position(self.balls[1].rect.x-33,self.balls[1].rect.y-18)
         self.balls[3].set_position(self.balls[1].rect.x-33,self.balls[1].rect.y+18)
@@ -198,7 +199,8 @@ class Balls():
         self.balls[2].set_position(self.balls[5].rect.x-33,self.balls[5].rect.y+18)
         self.balls[14].set_position(self.balls[13].rect.x-33,self.balls[13].rect.y+18)
         self.balls[15].set_position(self.balls[6].rect.x-33,self.balls[6].rect.y+18)
-        
+
+        # set initial values
         for ball in self.balls:
             ball.speed = 0
             ball.angle = 0
@@ -282,6 +284,7 @@ class Ball(sprite.Sprite):
         dx = self.rect.centerx - other.rect.centerx
         dy = self.rect.centery - other.rect.centery
         distance = math.hypot(dx, dy) #distance between ball centers
+        #dd = 2*BALL_RADIUS - distance
         if distance <= BALL_RADIUS*2: #collision!
             #print("collision ", str(self.num), " ",  str(other.num))
             #print("dx is ", str(dx), " dy is ", str(dy))
@@ -289,49 +292,29 @@ class Ball(sprite.Sprite):
             #print("other.speed = ", str(other.speed), "angle = ", str(other.angle))
             #calculate angle between balls
             tangent = math.atan2(dy,dx)     
-            #tangent = -1*(tangent-math.pi) #convert to our reference
+            tangent = -1*(tangent-math.pi) #convert to our reference
             #print("tangent is ", str(tangent))
             
             #Set new x/y distances ---- Huzzah for wikipedia: https://en.wikipedia.org/wiki/Elastic_collision#Two-dimensional_collision_with_two_moving_objects
+            new_x1 = other.speed*math.cos(other.angle-tangent)*math.cos(tangent)+self.speed*math.sin(self.angle-tangent)*math.cos(tangent+math.pi/2)
+            new_y1 = other.speed*math.cos(other.angle-tangent)*math.sin(tangent)+self.speed*math.sin(self.angle-tanget)*math.sin(tangent+math.pi/2)
+            new_x2 = self.speed*math.cos(self.angle-tangent)*math.sin*tangent)+other.speed*math.sin(other.angle-tangent)*math.cos(tangent+math.pi/2)
+            new_y2 = self.speed*math.sin(self.angle-tangent)*math.sin(tangent)+other.speed*math.sin(other.angle-tangent)*math.sin(tangent+math.pi/2)
 
-            temp = self.speed
-            self.speed = other.speed
-            other.speed = temp
-
-            angle = 0.5 * math.pi + tangent
-            self.rect.centerx += math.sin(angle)
-            self.rect.centery -= math.cos(angle)
-            other.rect.centerx -= math.sin(angle)
-            other.rect.centery += math.cos(angle)
-            
-            '''new_x1 = other.speed*math.cos(other.angle-tangent)*math.cos(tangent)+self.speed*math.sin(self.angle-tangent)*math.cos(tangent+math.pi/2)
-            new_y1 = other.speed*math.cos(other.angle-tangent)*math.sin(tangent)+self.speed*math.sin(self.angle-tangent)*math.sin(tangent+math.pi/2)
-            new_x2 = self.speed*math.cos(self.angle-tangent)*math.cos(tangent)+other.speed*math.sin(other.angle-tangent)*math.cos(tangent+math.pi/2)
-            new_y2 = self.speed*math.cos(self.angle-tangent)*math.sin(tangent)+other.speed*math.sin(other.angle-tangent)*math.sin(tangent+math.pi/2)
-'''
-            '''#Turn x/y distances into angle and magnitude
+            #Turn x/y distances into angle and magnitude
             self.angle = math.atan2(new_y1, new_x1)
             self.speed = math.hypot(new_x1, new_y1)
             other.angle = math.atan2(new_y2, new_x2)
             other.speed = math.hypot(new_x2, new_y2)
-'''
-''' #print("new self.speed = ", str(self.speed), "angle = ", str(self.angle))
-            #print("new other.speed = ", str(other.speed), "angle = ", str(other.angle))
-            
-        #Try to unstick balls from each other -- TODO: This part is still iffy                             -1\
-            #self.rect.centerx += dx
-            #while distance < BALL_RADIUS * 2:
-'''
-'''         dx = (BALL_RADIUS - dx)# / 2
-            dy = (BALL_RADIUS - dy)# / 2
-            self.rect.centerx += -dx*math.cos(self.angle)#tangent+math.pi/2)
-            self.rect.centery += -dy*math.sin(self.angle)#tangent+math.pi/2)
-            #other.rect.centerx -= -dx*math.cos(other.angle)#tangent+math.pi/2)
-            #other.rect.centery -= -dy*math.sin(other.angle)#tangent+math.pi/2)
-     #      dx = self.rect.centerx - other.rect.centerx
-     #      dy = self.rect.centery - other.rect.centery
-     #      distance = math.hypot(dx, dy)
-'''
+
+            #Try to unstick balls from each other -- TODO: This part is still iffy
+            dx = (BALL_RADIUS - dx) / 2
+            dy = (BALL_RADIUS - dy) /2
+            self.rect.centerx += -dx*math.cos(self.angle)#tangent+math.pi/2
+            self.rect.centery += -dy*math.sin(self.angle)#tangent+math.pi/2
+            other.rect.centerx -= -dx*math.cos(other.angle)#tangent+math.pi/2
+            other.rect.centery -= -dy*math.sin(other.angle)#tangent+math.pi/2
+
     def pocketCollision(self):
         corner_pockets = [(53,60),(53,584),(1077,60),(1077,584)]
         side_pockets = [(563,47),(563,594)]
@@ -352,7 +335,8 @@ class Ball(sprite.Sprite):
                 print("ball pocketed")
                 return True
         return False
-                
+
+    # Called whenever this ball has been pocketed
     def score(self):
         if self.num == 0: #handle cue ball differently -- we still draw it
             self.speed = 0
@@ -366,7 +350,6 @@ class Ball(sprite.Sprite):
         self.rect.y = 0
 
     def tick(self):
-        #print("speed is ", str(self.speed))
         # cos and sin take the angle in radians -- be careful
         self.rect.x += -1 * self.speed * math.cos(self.angle)
         self.rect.y += -1 * self.speed * math.sin(self.angle)
@@ -377,8 +360,6 @@ class Ball(sprite.Sprite):
             if self.speed < 1.75:
                  self.speed = 0
             pass
-            #print("decrementing speed")
-            #self.speed -= 1
         # gradually get slower
         
 #Class for game table        
@@ -391,24 +372,6 @@ class Table(sprite.Sprite):
     def draw(self,surface):
         surface.blit(self.image,self.rect)
 
-'''class Walls():
-    def __init__(self):
-        self.walls = []
-        self.walls.append(Wall(105, 525, 55, 75))     # top left wall
-        self.walls.append(Wall(600, 1025, 75, 55))    # top right
-        self.walls.append(Wall(1065, 1085, 115, 530)) # right
-        self.walls.append(Wall(600, 1025, 570, 590))  # bottom right
-        self.walls.append(Wall(110, 525, 570, 590))   # bottom left
-        self.walls.append(Wall(55, 75, 115, 530))     # left
-        
-class Wall():
-    def __init__(self, left, right, front): #top, bottom):
-        #self.left = left
-        #self.right = right
-        self.front = front
-        self.top = top
-        self.bottom = bottom
-'''        
 #Class for game cue
 class Stick(sprite.Sprite):
     def __init__(self):
@@ -442,7 +405,7 @@ class Stick(sprite.Sprite):
             self.rect.x -= 10
             self.power -= 10
 
-    #Function to shoot ball --- TODO: Determine how we want to animate this
+    #Function to shoot ball
     def shoot(self):
         self.rect.x = self.old_x
         self.rect.y = self.old_y
@@ -495,6 +458,7 @@ class Stick(sprite.Sprite):
 #        self.rect.x = curr_x
 #        self.rect.y = curr_y
 
+#Class for displaying info to the player (turn, score, etc)
 class Message(sprite.Sprite):
     def __init__(self):
         sprite.Sprite.__init__(self)
