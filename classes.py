@@ -111,6 +111,7 @@ class Player():
                 if i == 8:
                     self.gameover(1)
                 elif i == 0:
+                    print("scratched")
                     self.cueScratch()
                 elif self.team == "":
                     self.justScored = True
@@ -127,7 +128,11 @@ class Player():
                 elif self.team == "stripe" and i > 8:
                     self.justScored = True
                     self.scoreTotal += 1
-                
+
+    def cueScratch(self):
+        print("resetting from scratch")
+        self.balls.balls[0].set_position(3*TABLE_WIDTH/4-27, TABLE_HEIGHT/2)
+                    
     def gameover(self,status):
         self.gameover = True
         if status == 1 and self.scoreTotal == 7:
@@ -208,11 +213,12 @@ class Balls():
         scoreArray = []
         for i,ball in enumerate(self.balls):
             if ball.scored == False:
+                scoreTest = ball.pocketCollision()
                 ball.wallCollision()
                 for ball2 in self.balls[i+1:]:
                     if ball2.scored != True:
                         ball.ballCollision(ball2)
-                scoreTest = ball.pocketCollision()
+                #scoreTest = ball.pocketCollision()
                 if scoreTest == True:
                     scoreArray.append(1)
                 else:
@@ -253,6 +259,10 @@ class Ball(sprite.Sprite):
         
     def draw(self,surface):
         surface.blit(self.image,self.rect)
+
+    #def pocketCollision(self):
+        #x, y = self.rect.centerx, self.rect.centery
+        #if x+BALL_RADIUS 
         
     # check and handle collision with walls
     def wallCollision(self):
@@ -263,10 +273,10 @@ class Ball(sprite.Sprite):
         if x-BALL_RADIUS <= 72 and y+BALL_RADIUS < 530 and y-BALL_RADIUS > 111:
             self.rect.centerx = 73 + BALL_RADIUS
             self.angle = math.pi-self.angle
-        if y+BALL_RADIUS >=570 and x+BALL_RADIUS < 1025 and x-BALL_RADIUS > 105:
+        if y+BALL_RADIUS >=570 and ((x+BALL_RADIUS < 1025 and x-BALL_RADIUS > 600) or (x+BALL_RADIUS <= 525 and x-BALL_RADIUS > 105)):
             self.rect.centery = 569 - BALL_RADIUS
             self.angle = -self.angle
-        if y-BALL_RADIUS <= 72 and x+BALL_RADIUS < 1025 and x-BALL_RADIUS > 105:
+        if y-BALL_RADIUS <= 72 and ((x+BALL_RADIUS < 1025 and x-BALL_RADIUS > 600) or (x+BALL_RADIUS <= 525 and x-BALL_RADIUS > 105)):
             self.rect.centery = 73 + BALL_RADIUS
             self.angle = -self.angle
     
@@ -293,11 +303,18 @@ class Ball(sprite.Sprite):
             other.angle = math.atan2(new_y2, new_x2)
             other.speed = math.hypot(new_x2, new_y2)
             
-            #Try to unstick balls from each other -- TODO: This part is still iffy
-            self.rect.centerx += -1*math.cos(tangent+math.pi/2)
-            self.rect.centery += -1*math.sin(tangent+math.pi/2)
-            other.rect.centerx -= -1*math.cos(tangent+math.pi/2)
-            other.rect.centery -= -1*math.sin(tangent+math.pi/2)
+        #Try to unstick balls from each other -- TODO: This part is still iffy                             -1\
+            #self.rect.centerx += dx
+            #while distance < BALL_RADIUS * 2:
+            dx = (BALL_RADIUS - dx) / 2
+            dy = (BALL_RADIUS - dy) / 2
+            self.rect.centerx += -dx*math.cos(self.angle)#tangent+math.pi/2)
+            self.rect.centery += -dy*math.sin(self.angle)#tangent+math.pi/2)
+            other.rect.centerx -= -dx*math.cos(other.angle)#tangent+math.pi/2)
+            other.rect.centery -= -dy*math.sin(other.angle)#tangent+math.pi/2)
+                #dx = self.rect.centerx - other.rect.centerx
+                #dy = self.rect.centery - other.rect.centery
+                #distance = math.hypot(dx, dy)
     
     def pocketCollision(self):
         corner_pockets = [(53,60),(53,584),(1077,60),(1077,584)]
@@ -308,6 +325,7 @@ class Ball(sprite.Sprite):
             distance = math.hypot(dx, dy)
             if distance < 35:
                 self.score()
+                print("ball pocketed")
                 return True
         for coord in side_pockets:
             dx = self.rect.centerx - coord[0]
@@ -315,10 +333,15 @@ class Ball(sprite.Sprite):
             distance = math.hypot(dx, dy)
             if distance < 30:
                 self.score()
+                print("ball pocketed")
                 return True
         return False
                 
     def score(self):
+        if self.num == 0: #handle cue ball differently -- we still draw it
+            self.speed = 0
+            self.angle = 0
+            return
         self.image = self.hidden_image
         self.scored = True
         self.speed = 0
