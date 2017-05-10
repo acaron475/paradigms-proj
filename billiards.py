@@ -77,6 +77,7 @@ def game_loop(dict):
                 # set speed and power of cueball
                 # with data from the stick
                 stick.shoot()
+                print "ANGLE OF STICK IS " + str(stick.angle)
                 balls.balls[0].speed = stick.power/5
                 balls.balls[0].angle = stick.angle #(radians)
                 stick.power = 0
@@ -84,7 +85,6 @@ def game_loop(dict):
                 dict['shooting'] = True
 
         balls.tick()
-        stick.tick(balls.balls[0])
         scoredArray = balls.collisions()
         player.handleScores(scoredArray)
         message.image = message.your_turn_image

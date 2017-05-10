@@ -177,7 +177,7 @@ class Player():
 class Balls():
     def __init__(self):
         self.balls = [Ball('ball_16.png',0)]
-        for i in range(1,16):
+        for i in range(1,16): # 16
             ball = Ball('ball_' + str(i) + '.png',i)
             self.balls.append(ball)
     
@@ -284,43 +284,63 @@ class Ball(sprite.Sprite):
         dx = self.rect.centerx - other.rect.centerx
         dy = self.rect.centery - other.rect.centery
         distance = math.hypot(dx, dy) #distance between ball centers
+        dd = 2*BALL_RADIUS - distance
         #dd = 2*BALL_RADIUS - distance
         if distance <= BALL_RADIUS*2: #collision!
-            print("collision ", str(self.num), " ",  str(other.num))
-            #print("dx is ", str(dx), " dy is ", str(dy))
+            #print("collision ", str(self.num), " ",  str(other.num))
+            #print("dx is ", str(dx), " dy is ", str(dy), "dd is ", str(dd))
             #print("self.speed = ", str(self.speed), "angle = ", str(self.angle))
             #print("other.speed = ", str(other.speed), "angle = ", str(other.angle))
             #calculate angle between balls
             tangent = math.atan2(dy,dx)     
-            tangent = -1*(tangent-math.pi) #convert to our reference
-            print("tangent is ", str(tangent))
+            tangent = -1*(tangent-math.pi/2) #convert to our reference
+            #print("tangent is ", str(tangent))
             
             #Set new x/y distances ---- Huzzah for wikipedia: https://en.wikipedia.org/wiki/Elastic_collision#Two-dimensional_collision_with_two_moving_objects
             new_x1 = other.speed*math.cos(other.angle-tangent)*math.cos(tangent)+self.speed*math.sin(self.angle-tangent)*math.cos(tangent+math.pi/2)
-            print "x1"
             new_y1 = other.speed*math.cos(other.angle-tangent)*math.sin(tangent)+self.speed*math.sin(self.angle-tangent)*math.sin(tangent+math.pi/2)
-            print "y1"
             new_x2 = self.speed*math.cos(self.angle-tangent)*math.sin(tangent)+other.speed*math.sin(other.angle-tangent)*math.cos(tangent+math.pi/2)
-            print "x2"
             new_y2 = self.speed*math.sin(self.angle-tangent)*math.sin(tangent)+other.speed*math.sin(other.angle-tangent)*math.sin(tangent+math.pi/2)
 
-            print "setting new values"
+            #print "new x1, y1 " + str(new_x1) + " " + str(new_y1)
+            #print "new x2, y2 " + str(new_x2) + " " + str(new_y2)
+            
+            #print "setting new values"
+
+            #if self.angle == 0 and self.speed != 0:
+            #    self.angle = 2*math.pi
+            #if other.angle == 0 and other.speed != 0:
+            #    other.angle = 2*math.pi
             
             #Turn x/y distances into angle and magnitude
+            self.angle = 2*tangent - self.angle
+            other.angle =  2*tangent - other.angle - math.pi
+            (self.speed, other.speed) = (other.speed, self.speed)
+
+
             self.angle = math.atan2(new_y1, new_x1)
             self.speed = math.hypot(new_x1, new_y1)
             other.angle = math.atan2(new_y2, new_x2)
             other.speed = math.hypot(new_x2, new_y2)
 
-            print "unstick"
+            #print "new self speed = " + str(self.speed) + " at angle " + str(self.angle)
+            #print "new other speed = " + str(other.speed) + " at angle " + str(other.angle)
+            
+            #print "unstick"
             #Try to unstick balls from each other -- TODO: This part is still iffy
+            #dd = 150
+            #angle = 0.5 * math.pi + tangent
+            #self.rect.centerx += -dd*math.cos(angle)
+            #self.rect.centery += -dd*math.sin(angle)
+            #other.rect.centerx += -dd*math.cos(angle)
+            #other.rect.centery += -dd*math.sin(angle)
             dx = (BALL_RADIUS - dx) / 2
-            dy = (BALL_RADIUS - dy) /2
+            dy = (BALL_RADIUS - dy) / 2
             self.rect.centerx += -dx*math.cos(self.angle)#tangent+math.pi/2
             self.rect.centery += -dy*math.sin(self.angle)#tangent+math.pi/2
-            other.rect.centerx -= -dx*math.cos(other.angle)#tangent+math.pi/2
-            other.rect.centery -= -dy*math.sin(other.angle)#tangent+math.pi/2
-            print "done"
+            other.rect.centerx += -dx*math.cos(other.angle)#tangent+math.pi/2
+            other.rect.centery += -dy*math.sin(other.angle)#tangent+math.pi/2
+            #print "done"
 
     def pocketCollision(self):
         corner_pockets = [(53,60),(53,584),(1077,60),(1077,584)]
@@ -436,34 +456,6 @@ class Stick(sprite.Sprite):
         else:
             surface.blit(self.orig_image,self.rect)
         self.line = pygame.draw.line(surface,(0,0,0),(cx,cy),(x,y))
-
-    # Function to update angle of stick -- follows mouse
-    def tick(self, cueball):
-        pass
-#        cx, cy = cueball.rect.centerx, cueball.rect.centery
-#        mx, my = pygame.mouse.get_pos()
-#
-#        self.angle = -1*(math.atan2(my-cy,mx-cx)-math.pi)
-#        print(self.angle)
-#        self.image = rot_center(self.orig_image, math.degrees(self.angle))        
-#        
-#        ratio = (int(math.degrees(self.angle)) / 180) % (180)
-#        print(ratio)
-#        
-#        x = cx# + (self.rect.width/2+BALL_RADIUS)*math.cos(self.angle)
-#        y = cy# + (self.rect.width/2+BALL_RADIUS)*math.sin(self.angle)
-#        self.rect.midleft = (x,y)
-#        self.rect.centery = y
-#        x -= cueball.rect.centerx
-#        y -= cueball.rect.centery
-#        self.angle = math.degrees(math.atan2(x, y)) + 90
-#        print(self.angle)
-#        
-#        self.image = pygame.transform.rotate(self.orig_image, self.angle)
-#        self.set_position(curr_x, curr_y)
-#        self.rect = self.image.get_rect()
-#        self.rect.x = curr_x
-#        self.rect.y = curr_y
 
 #Class for displaying info to the player (turn, score, etc)
 class Message(sprite.Sprite):
